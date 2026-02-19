@@ -5,11 +5,12 @@
 # Registry Fields #
 # [registry_name]
 # version = "x.y.z" # REQUIRED: The version of the package, in semantic versioning format.
+# author = "Author Name" # OPTIONAL: The name of the author of the package. Will default to "unknown" if not provided.
 # description = "A short description of the package." # OPTIONAL: A short description of the package.
 # url = "https://example.com/package" # REQUIRED: The URL where the package can be. Must be a direct link to a binary file (e.g. .exe, .bin, .sh, etc.) or a script file (e.g. .py, .js, etc.) that can be executed directly.
 
 [hello]
 version = "1.0.0"
+author = "centipm"
 description = "A simple package that prints 'Hello, World!'"
 url = "https://raw.githubusercontent.com/tyydev1/hello/refs/heads/main/hello.sh"
-

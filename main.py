@@ -16,7 +16,7 @@ from packages import Package
 from network import download_binary, fetch_registry
 from storage import get_bin_dir, get_config_path, init_dir_structure, load_config, load_packages, save_packages
 
-__version__ = "0.1.0"
+__version__ = "0.1.1-dev"
 
 def version_callback(value: bool):
     if value:
@@ -149,6 +149,14 @@ def view():
         return
 
     for package, info in packages.items():
+        typer.echo(
+            typer.style(
+                f"{info.author}/",
+                fg=typer.colors.BRIGHT_BLUE,
+                bold=True
+            ),
+            nl=False
+        )
         typer.echo(
             typer.style(
                 f"{package} ",

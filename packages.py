@@ -4,18 +4,20 @@ from dataclasses import dataclass
 class Package:
     name: str
     version: str
+    author: str = "unknown"
     description: str = "This is a package"
 
     def __repr__(self) -> str:
-        return f"package '{self.name}' with version {self.version}"
+        return f"package '{self.name}' by {self.author} with version {self.version}"
     
     def __str__(self) -> str:
-        return f"{self.name} / {self.version}"
+        return f"{self.author}/{self.name} {self.version}"
     
     def to_dict(self) -> dict:
         return {
             "name": self.name,
             "version": self.version,
+            "author": self.author,
             "description": self.description
         }
     
@@ -24,6 +26,7 @@ class Package:
         return Package(
             name=name,
             version=data.get("version", "Unknown"),
+            author=data.get("author", "unknown"),
             description=data.get("description", "This is a package")
         )
 
@@ -32,12 +35,13 @@ class RegistryPackage(Package):
     url: str
 
     def __repr__(self) -> str:
-        return f"registry package '{self.name}' version {self.version} with url {self.url}"
+        return f"registry package '{self.name}' by {self.author} version {self.version} with url {self.url}"
     
     def to_package(self) -> Package:
         return Package(
             name=self.name,
             version=self.version,
+            author=self.author,
             description=self.description
         )
 
@@ -53,6 +57,7 @@ class RegistryPackage(Package):
         return RegistryPackage(
             name=name,
             version=data.get("version", "Unknown"),
+            author=data.get("author", "unknown"),
             description=data.get("description", "This is a package"),
             url=data["url"]
         )
