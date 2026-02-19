@@ -1,6 +1,7 @@
 # This file contains the functions responsible for network-related issues, such as
 # fetching files from the registry URL, connecting to the URL, and more.
 
+from pathlib import Path
 import tomllib
 import os
 import stat
@@ -19,7 +20,7 @@ def fetch_registry(url: str) -> dict[str, RegistryPackage]:
         name: RegistryPackage.from_dict(name, data) for name, data in registry.items()
     }
 
-def download_binary(name: str, url: str, dest: Optional[str] = None) -> None:
+def download_binary(name: str, url: str, dest: Optional[Path | str] = None) -> None:
     if dest is None:
         dest = str(get_bin_dir() / name)
 

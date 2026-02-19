@@ -9,13 +9,6 @@
 # description = "A short description of the package." # OPTIONAL: A short description of the package.
 # url = "https://example.com/package" # REQUIRED: The URL where the package can be. Must be a direct link to a binary file (e.g. .exe, .bin, .sh, etc.) or a script file (e.g. .py, .js, etc.) that can be executed directly.
 
-[centipm]
-name = "centipm"
-version = "0.1.0"
-description = "An isolated, standalone binary package manager."
-url = "https://github.com/tyydev1/centipm"
-
-
 [hello]
 name = "hello"
 version = "1.0.0"

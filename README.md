@@ -77,7 +77,7 @@ Run `centipm --help` to see the available commands and options. The most basic u
 
 # Adding your own registries
 
-By default, CentiPM uses a registry hosted at `https://raw.githubusercontent.com/tyydev1/centipm-registry/main/registries.toml`. However, you can add your own registries by modifying the `config.toml` file located in the CentiPM configuration directory (default at `~/.centipm/config.toml`).
+By default, CentiPM uses a registry hosted at `https://raw.githubusercontent.com/tyydev1/centipm/main/registries.toml`. However, you can add your own registries by modifying the `config.toml` file located in the CentiPM configuration directory (default at `~/.centipm/config.toml`).
 
 Your registry URL should point to a `registries.toml` file that follows the same format as the default registry. Once you've added your registry URL to the config file, CentiPM will fetch packages from it during installation and upgrades, just like that.
 
