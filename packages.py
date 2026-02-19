@@ -56,14 +56,3 @@ class RegistryPackage(Package):
             description=data.get("description", "This is a package"),
             url=data["url"]
         )
-
-def main():
-    dummy: Package = RegistryPackage(
-        name="hello",
-        version="1.0.2-dev",
-        url="https://example.com/api"
-    )
-    print(dummy)
-    
-if __name__ == "__main__":
-    main()
