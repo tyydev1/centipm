@@ -4,6 +4,7 @@
 import tomllib
 import os
 import stat
+from typing import Optional
 
 from storage import get_bin_dir
 from packages import RegistryPackage
@@ -18,8 +19,9 @@ def fetch_registry(url: str) -> dict[str, RegistryPackage]:
         name: RegistryPackage.from_dict(name, data) for name, data in registry.items()
     }
 
-def download_binary(name: str, url: str) -> None:
-    dest = get_bin_dir() / name
+def download_binary(name: str, url: str, dest: Optional[str] = None) -> None:
+    if dest is None:
+        dest = str(get_bin_dir() / name)
 
     response = requests.get(url, stream=True)
     response.raise_for_status()

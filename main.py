@@ -1,21 +1,62 @@
+# stdlib imports
+import os
 from pathlib import Path
 import subprocess
+import sys
+import platform
+import tempfile
 from typing import Optional
 
+# third-party imports
+import requests
 import typer
 
+# local imports
 from packages import Package
 from network import download_binary, fetch_registry
-from storage import get_bin_dir, init_dir_structure, load_config, load_packages, save_packages
+from storage import get_bin_dir, get_config_path, init_dir_structure, load_config, load_packages, save_packages
 
-app = typer.Typer()
+__version__ = "0.1.0"
+
+def version_callback(value: bool):
+    if value:
+        typer.echo(typer.style(f"Centi Package Manager (centipm) version {__version__}", fg=typer.colors.BRIGHT_CYAN, bold=True))
+        raise typer.Exit()
+
+app = typer.Typer(
+    context_settings={
+        "help_option_names": ['-h', '--help']
+    }
+)
 
 def dimmify(text: str) -> str:
     return typer.style(text, dim=True)
 
 @app.callback()
-def startup():
+def startup(
+    version: bool = typer.Option(
+        None,
+        "--version", "-v", 
+        callback=version_callback, 
+        is_eager=True,
+        help="Shows the CentiPM version and exit"
+    ),
+):
     init_dir_structure()
+
+@app.command()
+def registry():
+    """Shows the registry URL"""
+    config = load_config()
+    registry_url = config["registry"]["url"]
+    typer.echo(typer.style(f"Current registry URL: ", fg=typer.colors.BRIGHT_CYAN, bold=True), nl=False)
+    typer.echo(registry_url)
+
+@app.command()
+def config():
+    """Shows the config file path"""
+    typer.echo(typer.style(f"Config file path: ", fg=typer.colors.BRIGHT_CYAN, bold=True), nl=False)
+    typer.echo(get_config_path())
 
 @app.command()
 def install(package: str, version: str = "latest", dim: bool = typer.Option(False, "--dim/--no-dim", help="Dim the output instead of showing it in bright colors")):
@@ -223,6 +264,59 @@ def update(package: Optional[str] = None):
         if not any_updated:
             typer.echo(typer.style("[NOTE] No updates installed.", fg=typer.colors.BRIGHT_CYAN, bold=True))
 
+@app.command(name="update-self")
+def update_self():
+    """Updates CentiPM itself to the latest version on GitHub releases"""
+
+    platform_map = {
+        "Linux": "centipm-linux",
+        "Darwin": "centipm-macos",
+        "Windows": "centipm-windows"
+    }
+    system = platform.system()
+    if system not in platform_map:
+        typer.echo(typer.style(f"[FAIL] Unsupported platform: {system}", fg=typer.colors.BRIGHT_RED, bold=True))
+        typer.echo(typer.style("[GUIDE] Wha- how did get this error? I thought I covered all platforms!", fg=typer.colors.YELLOW))
+        typer.echo(typer.style("[GUIDE] Please submit an issue on the GitHub repository of this project, including the output of 'platform.system()' and 'platform.version()'!", fg=typer.colors.YELLOW))
+        typer.echo(typer.style("[GUIDE] Seriously though, CentiPM should work on any platform with Python 3.14. Maybe install the Linux (manually, I'm sorry) version in the meantime?", fg=typer.colors.YELLOW))
+        return
+
+    target_name = platform_map[system]
+    asset_url = None
+
+    if not typer.confirm("This will update CentiPM itself. Continue?", default=True):
+        typer.echo(typer.style("[FAIL] Process aborted.", fg=typer.colors.BRIGHT_RED, bold=True))
+        return
+    
+    response = requests.get("https://api.github.com/repos/tyydev1/centipm/releases/latest")
+    response.raise_for_status()
+
+    json = response.json()
+    latest_version = json["tag_name"]
+    if latest_version.lstrip("v") == __version__:
+        typer.echo(typer.style(f"[NOTE] You are already using the latest version of CentiPM ({__version__})!", fg=typer.colors.BRIGHT_CYAN, bold=True))
+        return
+    
+    for asset in json["assets"]:
+        if asset["name"] == target_name:
+            asset_url = asset["browser_download_url"]
+            break
+
+    if not asset_url:
+        typer.echo(typer.style(f"[FAIL] Could not find asset for platform '{system}'!", fg=typer.colors.BRIGHT_RED, bold=True))
+        typer.echo(typer.style("[GUIDE] For the meantime, you can manually download the binary for the closest-like platform in the GitHub releases page, like Linux.", fg=typer.colors.YELLOW))
+        return
+
+    temp_path = Path(tempfile.gettempdir()) / "centipm_update"
+    typer.echo(typer.style(f"[LOAD] Updating CentiPM from version {__version__} to {latest_version}...", fg=typer.colors.BRIGHT_BLUE, bold=True))
+    download_binary(
+        "centipm",   
+        asset_url,
+        dest=temp_path
+    ) # updated this function to take an optional dest param, defaulted to the bin directory
+    os.replace(temp_path, sys.executable)
+
+    typer.echo(typer.style("[DONE] Successfully updated CentiPM! Please restart your terminal (though you don't need to) to apply the update.", fg=typer.colors.BRIGHT_GREEN, bold=True))
 
 if __name__ == "__main__":
     app()

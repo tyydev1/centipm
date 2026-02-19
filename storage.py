@@ -19,6 +19,7 @@ def init_dir_structure() -> None:
 
     if not (config_path := (root / "config.toml")).exists():
         with open(config_path, "w") as f:
+            f.write("## NOTICE: DO NOT MOVE OR DELETE THIS FILE, AS IT WILL RESET YOUR CONFIGURATION TO DEFAULTS ##\n")
             f.write("###--Automatically generated config file--###\n")
             f.write("# This file contains the configuration for centipm.\n")
             f.write("# You can edit this file to change the behavior of centipm.\n")
