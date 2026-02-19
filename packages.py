@@ -6,8 +6,11 @@ class Package:
     version: str
     description: str = "This is a package"
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return f"package '{self.name}' with version {self.version}"
+    
+    def __str__(self) -> str:
+        return f"{self.name} / {self.version}"
     
     def to_dict(self) -> dict:
         return {
@@ -17,9 +20,9 @@ class Package:
         }
     
     @classmethod
-    def from_dict(cls, data: dict) -> 'Package':
+    def from_dict(cls, name: str, data: dict) -> 'Package':
         return Package(
-            name=data.get("name", "Unknown"),
+            name=name,
             version=data.get("version", "Unknown"),
             description=data.get("description", "This is a package")
         )
@@ -28,20 +31,27 @@ class Package:
 class RegistryPackage(Package):
     url: str
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return f"registry package '{self.name}' version {self.version} with url {self.url}"
     
+    def to_package(self) -> Package:
+        return Package(
+            name=self.name,
+            version=self.version,
+            description=self.description
+        )
+
     def to_dict(self) -> dict:
         base = super().to_dict()
         base["url"] = self.url
         return base
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'RegistryPackage':
+    def from_dict(cls, name: str, data: dict) -> 'RegistryPackage':
         if "url" not in data or not data["url"]:
             raise ValueError("URL is required and cannot be empty")
         return RegistryPackage(
-            name=data.get("name", "Unknown"),
+            name=name,
             version=data.get("version", "Unknown"),
             description=data.get("description", "This is a package"),
             url=data["url"]

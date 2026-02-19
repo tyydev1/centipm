@@ -1,0 +1,17 @@
+# This is the default and 'official' registry for the Centi package manager.
+# It is a simple file hosted on GitHub, which contains a list of packages.
+# To add your own packages to the registry, simply fork the repository, add your packages to the file, and submit a pull request.
+
+[centipm]
+name = "centipm"
+version = "0.1.0"
+description = "An isolated, standalone binary package manager."
+url = "https://github.com/tyydev1/centipm"
+
+
+[hello]
+name = "hello"
+version = "1.0"
+description = "A simple package that prints 'Hello, World!'"
+url = "https://raw.githubusercontent.com/tyydev1/hello/refs/heads/main/hello.sh"
+
