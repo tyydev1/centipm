@@ -96,6 +96,8 @@ Read the comments in the [default registries.toml](https://github.com/tyydev1/ce
 - [ ] Add support for archive formats (e.g. .zip, .tar.gz, etc.).
 - [ ] Add support for multiple registries and registry prioritization.
 - [ ] Add support for package versioning and version constraints.
+- [ ] Add sha256 hash verification for downloaded packages to ensure integrity and security.
+- [ ] Add Rust's pymodule for better performance, using the PyO3 library.
 
 # Contributing
 
