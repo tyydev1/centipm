@@ -11,7 +11,7 @@ url = "https://github.com/tyydev1/centipm"
 
 [hello]
 name = "hello"
-version = "1.0"
+version = "1.0.0"
 description = "A simple package that prints 'Hello, World!'"
 url = "https://raw.githubusercontent.com/tyydev1/hello/refs/heads/main/hello.sh"
 

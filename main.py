@@ -1,8 +1,12 @@
+from pathlib import Path
+import subprocess
+from typing import Optional
+
 import typer
 
 from packages import Package
 from network import download_binary, fetch_registry
-from storage import init_dir_structure, load_config, load_packages, save_packages
+from storage import get_bin_dir, init_dir_structure, load_config, load_packages, save_packages
 
 app = typer.Typer()
 
@@ -37,12 +41,24 @@ def install(package: str, version: str = "latest"):
     new_packages = load_packages()
     new_packages[registries[package].name] = registries[package].to_package()
     save_packages(new_packages)
-    typer.echo(typer.style(f"[DONE] Successfully installed '{package}'! Run it with 'centipm run {package}'", fg=typer.colors.BRIGHT_BLUE, bold=True))
+    typer.echo(typer.style(f"[DONE] Successfully installed '{package}'! Run it with 'centipm run {package}'", fg=typer.colors.BRIGHT_GREEN, bold=True))
 
 @app.command()
 def remove(package: str):
     """Removes an installed package"""
-    typer.echo(typer.style(f"[LOAD] Removing {package}...", fg=typer.colors.BRIGHT_RED, bold=True))
+    typer.echo(typer.style(f"[LOAD] Finding {package}...", fg=typer.colors.BRIGHT_BLUE, bold=True))
+    if package not in load_packages():
+        typer.echo(typer.style(f"[FAIL] Package '{package}' is not installed!", fg=typer.colors.BRIGHT_RED, bold=True))
+        return
+    
+    typer.echo(typer.style(f"[LOAD] Found '{package}'! Removing...", fg=typer.colors.BRIGHT_BLUE, bold=True))
+    (get_bin_dir() / package).unlink()
+    typer.echo(typer.style(f"[LOAD] Successfully removed '{package}'! Removing entry...", fg=typer.colors.BRIGHT_BLUE, bold=True))
+
+    new_packages = load_packages()
+    del new_packages[package]
+    save_packages(new_packages)
+    typer.echo(typer.style(f"[DONE] Successfully removed '{package}'!", fg=typer.colors.BRIGHT_GREEN, bold=True))
 
 @app.command()
 def view():
@@ -75,9 +91,19 @@ def view():
         typer.echo(f"\t{info.description}")
 
 @app.command()
-def run(package: str):
+def run(package: str, extra: Optional[list[str]] = typer.Argument(None)):
     """Execute an installed package"""
-    typer.echo(f"Running {package}...")
+    if package not in load_packages():
+        typer.echo(typer.style(f"[FAIL] Package '{package}' is not installed!", fg=typer.colors.BRIGHT_RED, bold=True))
+        return
+    if not Path.exists(get_bin_dir() / package):
+        typer.echo(typer.style(f"[FAIL] Binary for '{package}' is missing!", fg=typer.colors.BRIGHT_RED, bold=True))
+        typer.echo(typer.style("[GUIDE] This shouldn't happen, unless the files was manually removed.\n"
+                               "[GUIDE] If this was unintentional, please submit an issue on the GitHub repository of this project!\n"
+                               "[GUIDE] This is not the fault of the package, do not submit an issue to the package binary unless completely sure.",
+                               fg=typer.colors.YELLOW))
+        return
+    subprocess.run([str(get_bin_dir() / package)] + (extra or []))
 
 if __name__ == "__main__":
     app()
