@@ -11,3 +11,8 @@ dependencies = [
 
 [project.scripts]
 centipm = "main:app"
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.19.0",
+]

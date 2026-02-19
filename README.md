@@ -74,10 +74,14 @@ Run `centipm --help` to see the available commands and options. The most basic u
 - [x] `run <package> [args...]`: Runs the binary of the specified package with optional arguments.
 - [ ] `registry add <registry_url>`: Adds a new registry URL to the config file.
 - [ ] `registry remove <registry_url>`: Removes a registry URL from the config file
+- [ ] `registry list`: Lists all registry URLs in the config file.
+- [x] `update-self`: Updates CentiPM itself to the latest version.
 
 # Adding your own registries
 
 By default, CentiPM uses a registry hosted at `https://raw.githubusercontent.com/tyydev1/centipm/main/registries.toml`. However, you can add your own registries by modifying the `config.toml` file located in the CentiPM configuration directory (default at `~/.centipm/config.toml`).
+
+NOTICE: Soon, the default registry will be moved to a separate github repository, and the `registries.toml` file will be removed from this repository.
 
 Your registry URL should point to a `registries.toml` file that follows the same format as the default registry. Once you've added your registry URL to the config file, CentiPM will fetch packages from it during installation and upgrades, just like that.
 
