@@ -1,6 +1,7 @@
 # stdlib imports
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import platform
@@ -12,13 +13,15 @@ import requests
 import typer
 from rich.progress import Progress
 from rich.console import Console
+from rich.panel import Panel # auto
+from rich.markdown import Markdown # auto
 
 # local imports
 from packages import Package
 from network import download_binary, fetch_registry, get_file_size
 from storage import get_bin_dir, get_config_path, init_dir_structure, load_config, load_packages, save_packages
 
-__version__ = "0.2.0-alpha.1"
+__version__ = "0.2.0"
 
 def version_callback(value: bool):
     if value:
@@ -162,6 +165,70 @@ def view():
         typer.echo(typer.style(info.version, fg=typer.colors.BRIGHT_GREEN, bold=True))
         typer.echo(f"    {info.description}")
 
+# AUTO-GENERATED CHANGELOG COMMAND
+@app.command()
+def changelog():
+    """Shows the changelog of the latest version"""
+    log("Fetching changelog...", level="LOAD", bold=True)
+    changelog_url = "https://raw.githubusercontent.com/tyydev1/centipm/refs/heads/main/CHANGELOG.md"
+    response = requests.get(changelog_url)
+    if response.status_code != 200:
+        log("Failed to fetch changelog!", level="FAIL", bold=True)
+        return
+    
+    console = Console()
+    changelog_text = response.text
+    
+    # Split by version headers (## [version])
+    lines = changelog_text.splitlines()
+    
+    # Find the first version header
+    version_line_idx = None
+    for i, line in enumerate(lines):
+        if line.startswith("## ["):
+            version_line_idx = i
+            break
+    
+    if version_line_idx is None:
+        log("No changelog versions found!", level="FAIL", bold=True)
+        return
+    
+    # Extract version and date from the header
+    version_header = lines[version_line_idx]
+    try:
+        version = version_header.split("]")[0].lstrip("##[").strip()
+        date_part = version_header.split("]")[1].strip().lstrip("-").strip()
+    except (IndexError, AttributeError):
+        log("Could not parse changelog header!", level="FAIL", bold=True)
+        return
+    
+    # Find the next version header or end of file
+    next_version_idx = None
+    for i in range(version_line_idx + 1, len(lines)):
+        if lines[i].startswith("## ["):
+            next_version_idx = i
+            break
+    
+    # Extract content between this version and the next
+    if next_version_idx:
+        content_lines = lines[version_line_idx + 1:next_version_idx]
+    else:
+        content_lines = lines[version_line_idx + 1:]
+    
+    # Clean up the content
+    formatted_content = "\n".join(line for line in content_lines if line.strip())
+    
+    # Create a beautiful panel with the changelog
+    title = f"[bold cyan]{version}[/bold cyan] {date_part}"
+    changelog_panel = Panel(
+        Markdown(formatted_content) if formatted_content else "[dim]No changes recorded[/dim]",
+        title=title,
+        border_style="cyan",
+        padding=(1, 2)
+    )
+    console.print(changelog_panel)
+
+
 @app.command()
 def search(query: str, author: bool = typer.Option(False, "--author", help="Search by author instead of package name and description")):
     """Searches for a package in the registry"""
@@ -182,11 +249,13 @@ def search(query: str, author: bool = typer.Option(False, "--author", help="Sear
         log(f"No results found for '{query}'!", level="WARN", bold=True)
         return
     
+    packages = load_packages()
     log(f"Found {len(results)} result(s) for '{query}':", level="INFO", bold=True)
     for name, info in results:
         typer.echo(typer.style(f"{info.author}/", fg=typer.colors.BRIGHT_BLUE, bold=True), nl=False)
         typer.echo(typer.style(f"{name} ", bold=True), nl=False)
-        typer.echo(typer.style(info.version, fg=typer.colors.BRIGHT_GREEN, bold=True))
+        typer.echo(typer.style(info.version, fg=typer.colors.BRIGHT_GREEN, bold=True), nl=False)
+        typer.echo(typer.style(" (installed)", dim=True) if name in packages else "")
         typer.echo(f"    {info.description}")
 
 @app.command(
@@ -287,9 +356,9 @@ def update_self(prerelease: bool = typer.Option(False, "--pre-release", help="In
     """Updates CentiPM itself to the latest version on GitHub releases"""
 
     platform_map = {
-        "Linux": "centipm-linux",
-        "Darwin": "centipm-macos",
-        "Windows": "centipm-windows"
+        "Linux": "linux",
+        "Darwin": "macos",
+        "Windows": "windows"
     }
     system = platform.system()
     if system not in platform_map:
@@ -314,23 +383,32 @@ def update_self(prerelease: bool = typer.Option(False, "--pre-release", help="In
             log("Skipping pre-release scans..", level="INFO", bold=True)
             target_release_type = "release"
 
-    match target_release_type:
-        case "pre-release":
-            response = requests.get("https://api.github.com/repos/tyydev1/centipm/releases")
-            response.raise_for_status()
-            releases = response.json()
+    try:
+        match target_release_type:
+            case "pre-release":
+                response = requests.get("https://api.github.com/repos/tyydev1/centipm/releases")
+                response.raise_for_status()
+                releases = response.json()
 
-            if not releases:
-                log("No releases found!", level="FAIL", bold=True)
-                return
-            
-            json = releases[0]
+                if not releases:
+                    log("No releases found!", level="FAIL", bold=True)
+                    return
+                
+                json = releases[0]
 
-        case "release":
-            response = requests.get("https://api.github.com/repos/tyydev1/centipm/releases/latest")
-            response.raise_for_status()
+            case "release":
+                response = requests.get("https://api.github.com/repos/tyydev1/centipm/releases/latest")
+                response.raise_for_status()
 
-            json = response.json()
+                json = response.json()
+    except requests.exceptions.RequestException as e:
+        log(f"Failed to fetch releases from GitHub: {e}", level="FAIL", bold=True)
+        log("Please check your internet connection and try again.", level="GUIDE")
+        return
+    except (ValueError, KeyError) as e:
+        log(f"Failed to parse release data: {e}", level="FAIL", bold=True)
+        log("The GitHub API response was unexpected. Please try again later.", level="GUIDE")
+        return
 
     latest_version = json["tag_name"]
     if latest_version.lstrip("v") == __version__:
@@ -338,7 +416,7 @@ def update_self(prerelease: bool = typer.Option(False, "--pre-release", help="In
         return
     
     for asset in json["assets"]:
-        if asset["name"] == target_name:
+        if asset["name"].endswith(target_name):
             asset_url = asset["browser_download_url"]
             break
 
@@ -354,7 +432,9 @@ def update_self(prerelease: bool = typer.Option(False, "--pre-release", help="In
         asset_url,
         dest=temp_path
     ) # updated this function to take an optional dest param, defaulted to the bin directory
-    os.replace(temp_path, sys.executable)
+    
+    os.remove(sys.executable)
+    shutil.move(str(temp_path), sys.executable)
 
     log("Successfully updated CentiPM! Please restart your terminal (though you don't need to) to apply the update.", level="DONE", bold=True)
 

@@ -94,6 +94,7 @@ export PATH="$HOME/.centipm/bin:$PATH"
 - [ ] `registry remove <registry_url>`: Removes a registry URL from the config file
 - [ ] `registry list`: Lists all registry URLs in the config file.
 - [x] `update-self`: Updates CentiPM itself to the latest version.
+- [ ] `changelog`: Shows the changelog of the latest version.
 
 # Adding your own registries
 
