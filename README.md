@@ -117,6 +117,7 @@ It is recommended to just use the default registry (Dime/CentiPM Registry), as i
 # To-do List
 - [x] Implement basic package manager functionality (installing, upgrading, listing, removing packages).
 - [ ] Implement unchecked features in the usage section (e.g. registry management).
+- [ ] Add `runner` field on the registry fields for script files.
 - [ ] Downgrade Python version as low as possible without sacrificing any functionality, so your ~~smart fridge~~ device can run it too.
 - [ ] Add sha256 hash verification for downloaded packages to ensure integrity and security.
 - [ ] Add a Rust extention module early (via PyO3) for improved performance.

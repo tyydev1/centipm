@@ -6,12 +6,22 @@ import tomllib
 import os
 import stat
 from typing import Optional
+import hashlib
 
 from storage import get_bin_dir
 from packages import RegistryPackage
 import requests
 
+def verify_checksum(file_path: Path, expected_hash: str) -> bool:
+    """Verifies the SHA256 checksum of the file at the given path against the expected hash."""
+    sha256 = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            sha256.update(chunk)
+    return sha256.hexdigest() == expected_hash
+
 def fetch_registry(url: str) -> dict[str, RegistryPackage]:
+    """Fetches the registry from the given URL and returns a dictionary of package names to RegistryPackage objects."""
     response = requests.get(url)
     response.raise_for_status()
     
@@ -21,6 +31,7 @@ def fetch_registry(url: str) -> dict[str, RegistryPackage]:
     }
 
 def get_file_size(url: str) -> int:
+    """Returns the size of the file at the given URL in bytes."""
     response = requests.head(url)
     return int(response.headers.get("Content-Length", 0))
 
@@ -28,6 +39,7 @@ def download_binary(name: str,
                     url: str, 
                     dest: Optional[Path | str] = None,
                     on_progress=None) -> None:
+    """Downloads a binary from the given URL and saves it to the specified destination. If no destination is provided, it saves it to the bin directory with the given name."""
     if dest is None:
         dest = str(get_bin_dir() / name)
 

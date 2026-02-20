@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 @dataclass(kw_only=True)
 class Package:
@@ -6,6 +7,7 @@ class Package:
     version: str
     author: str = "unknown"
     description: str = "This is a package"
+    tags: Optional[list[str]] = None
 
     def __repr__(self) -> str:
         return f"package '{self.name}' by {self.author} with version {self.version}"
@@ -18,7 +20,8 @@ class Package:
             "name": self.name,
             "version": self.version,
             "author": self.author,
-            "description": self.description
+            "description": self.description,
+            "tags": self.tags
         }
     
     @classmethod
@@ -27,12 +30,14 @@ class Package:
             name=name,
             version=data.get("version", "Unknown"),
             author=data.get("author", "unknown"),
-            description=data.get("description", "This is a package")
+            description=data.get("description", "This is a package"),
+            tags=data.get("tags", None)
         )
 
 @dataclass(kw_only=True)
 class RegistryPackage(Package):
     url: str
+    sha256: Optional[str] = None
 
     def __repr__(self) -> str:
         return f"registry package '{self.name}' by {self.author} version {self.version} with url {self.url}"
@@ -42,12 +47,17 @@ class RegistryPackage(Package):
             name=self.name,
             version=self.version,
             author=self.author,
-            description=self.description
+            description=self.description,
+            tags=self.tags
         )
 
     def to_dict(self) -> dict:
         base = super().to_dict()
         base["url"] = self.url
+        if self.sha256:
+            base["sha256"] = self.sha256
+        if self.tags:
+            base["tags"] = self.tags
         return base
 
     @classmethod
@@ -59,5 +69,7 @@ class RegistryPackage(Package):
             version=data.get("version", "Unknown"),
             author=data.get("author", "unknown"),
             description=data.get("description", "This is a package"),
-            url=data["url"]
+            url=data["url"],
+            sha256=data.get("sha256", None),
+            tags=data.get("tags", None)
         )

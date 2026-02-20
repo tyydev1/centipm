@@ -18,10 +18,10 @@ from rich.markdown import Markdown # auto
 
 # local imports
 from packages import Package
-from network import download_binary, fetch_registry, get_file_size
+from network import download_binary, fetch_registry, get_file_size, verify_checksum
 from storage import get_bin_dir, get_config_path, init_dir_structure, load_config, load_packages, save_packages
 
-__version__ = "0.2.0"
+__version__ = "0.3.0-alpha.1"
 
 def version_callback(value: bool):
     if value:
@@ -35,6 +35,18 @@ app = typer.Typer(
     add_completion=False,
     no_args_is_help=True
 )
+
+def mutually_exclusive_callback(group_size: int = 1):
+    group = set()
+    def callback(ctx: typer.Context, param: typer.CallbackParam, value: bool):
+        if value:
+            if len(group) >= group_size:
+                raise typer.BadParameter(f"{param.name} is mutually exclusive with {next(iter(group))}")
+            group.add(param.name)
+        return value
+    return callback
+
+excl_cb = mutually_exclusive_callback()
 
 def log_load(message: str, task, dim: bool = False):
     """Runs a task with a LOAD spinner"""
@@ -58,7 +70,7 @@ def log(message: str, level: str = "INFO", bold: bool = False, dim: bool = False
         "NOTE": typer.colors.BRIGHT_CYAN
     }
     color = color_map.get(level, typer.colors.WHITE)
-    styled_message = typer.style(level, fg=color, bold=bold, dim=dim)
+    styled_message = typer.style(f"{level}", fg=color, bold=bold, dim=dim)
     message = typer.style(message, bold=bold, dim=dim)
     typer.echo(f"{styled_message} {message}")
 
@@ -124,7 +136,27 @@ def install(package: str, version: str = "latest", dim: bool = typer.Option(Fals
         with console.status("Downloading..."):
             download_binary(package, registries[package].url)
 
-    log(f"Successfully installed '{package}'!", level="INFO", bold=not dim, dim=dim)
+    log(f"Downloaded '{package}'!", level="INFO", bold=not dim, dim=dim)
+
+    if registries[package].sha256:
+        log("Verifying checksum...", level="LOAD", bold=not dim, dim=dim)
+        if verify_checksum(get_bin_dir() / package, registries[package].sha256):
+            log("Checksum verified!", level="DONE", bold=not dim, dim=dim)
+        else:
+            log("Checksum verification failed!", level="FAIL", bold=True)
+            log("The downloaded file may be corrupted or tampered with. Please try installing again.", level="GUIDE")
+            if not typer.confirm("Do you want to delete the downloaded file? (Recommended for your safety)", default=True):
+                log("File not deleted. Please manually delete the file at the path below to avoid potential security risks.", level="WARN", bold=True)
+                log(str(get_bin_dir() / package), level="WARN", bold=True)
+                return
+            log("Aborting installation and removing downloaded file...", level="LOAD", bold=not dim, dim=dim)
+            (get_bin_dir() / package).unlink()
+            log("Installation aborted.", level="FAIL", bold=True)
+            return
+    else:
+        log("No checksum provided for this package, skipping verification.", level="WARN", bold=not dim, dim=dim)
+        log("This may be a security risk, as the file could be corrupted or tampered with. Please be cautious when installing packages without checksums.", level="WARN", dim=dim)
+
     log("Saving entry..", level="LOAD", bold=not dim, dim=dim)
 
     new_packages = load_packages()
@@ -152,7 +184,7 @@ def remove(package: str, dim: bool = typer.Option(False, "--dim/--no-dim", help=
     log(f"Successfully removed '{package}'!", level="DONE", bold=not dim, dim=dim)
 
 @app.command()
-def view():
+def view(detailed: bool = typer.Option(False, "--detailed", "-d", help="Show detailed information about each package, including description")):
     """Lists the installed packages"""
     packages = load_packages()
     if not packages:
@@ -163,6 +195,8 @@ def view():
         typer.echo(typer.style(f"{info.author}/", fg=typer.colors.BRIGHT_BLUE, bold=True), nl=False)
         typer.echo(typer.style(f"{package} ", bold=True), nl=False)
         typer.echo(typer.style(info.version, fg=typer.colors.BRIGHT_GREEN, bold=True))
+        if detailed and info.tags:
+            typer.echo(typer.style(f"    ({', '.join(info.tags)})", italic=True, dim=True))
         typer.echo(f"    {info.description}")
 
 # AUTO-GENERATED CHANGELOG COMMAND
@@ -230,9 +264,13 @@ def changelog():
 
 
 @app.command()
-def search(query: str, author: bool = typer.Option(False, "--author", help="Search by author instead of package name and description")):
+def search(query: str, 
+           author: bool = typer.Option(False, "--author", help="Search by author instead of package name and description", callback=excl_cb),
+           tag: bool = typer.Option(False, "--tags", help="Search by tags instead of package name and description", callback=excl_cb)):
     """Searches for a package in the registry"""
-    log(f"Searching for '{query}' in the registry...", level="LOAD", bold=True)
+    type = "author" if author else "tags" if tag else "name/description"
+
+    log(f"Searching for packages with '{query}' using {type} in the registry...", level="LOAD", bold=True)
     registry_url = load_config()["registry"]["url"]
     registries = fetch_registry(registry_url)
 
@@ -240,6 +278,9 @@ def search(query: str, author: bool = typer.Option(False, "--author", help="Sear
     for name, info in registries.items():
         if not author:
             if query.lower() in name.lower() or query.lower() in info.description.lower():
+                results.append((name, info))
+        elif tag and info.tags:
+            if any(query.lower() in tag.lower() for tag in info.tags):
                 results.append((name, info))
         else:
             if query.lower() in info.author.lower():
@@ -250,12 +291,14 @@ def search(query: str, author: bool = typer.Option(False, "--author", help="Sear
         return
     
     packages = load_packages()
-    log(f"Found {len(results)} result(s) for '{query}':", level="INFO", bold=True)
+    log(f"Found {len(results)} result(s) for {type} '{query}':", level="INFO", bold=True)
     for name, info in results:
         typer.echo(typer.style(f"{info.author}/", fg=typer.colors.BRIGHT_BLUE, bold=True), nl=False)
         typer.echo(typer.style(f"{name} ", bold=True), nl=False)
         typer.echo(typer.style(info.version, fg=typer.colors.BRIGHT_GREEN, bold=True), nl=False)
         typer.echo(typer.style(" (installed)", dim=True) if name in packages else "")
+        if info.tags:
+            typer.echo(typer.style(f"    ({', '.join(info.tags)})", italic=True, dim=True))
         typer.echo(f"    {info.description}")
 
 @app.command(
@@ -355,6 +398,13 @@ def update(package: Optional[str] = None):
 def update_self(prerelease: bool = typer.Option(False, "--pre-release", help="Include prerelease versions in the update check")):
     """Updates CentiPM itself to the latest version on GitHub releases"""
 
+    if not os.access(sys.executable, os.W_OK):
+        log("Cannot update CentiPM: no write permission to the binary!", level="FAIL", bold=True)
+        log(f"Try running with sudo (or as administrator): sudo centipm update-self", level="GUIDE")
+        log(f"If you installed CentiPM via pip/source code, this command would not work. "
+            "Please install the latest version manually.", level="GUIDE")
+        return
+
     platform_map = {
         "Linux": "linux",
         "Darwin": "macos",
@@ -413,6 +463,11 @@ def update_self(prerelease: bool = typer.Option(False, "--pre-release", help="In
     latest_version = json["tag_name"]
     if latest_version.lstrip("v") == __version__:
         log(f"You are already using the latest version of CentiPM ({__version__})!", level="NOTE", bold=True)
+        return
+    
+    log(f"A new version of CentiPM is available: {latest_version}.", level="NOTE", bold=True)
+    if not typer.confirm("Do you want to update?", default=True):
+        log("Update cancelled.", level="FAIL", bold=True)
         return
     
     for asset in json["assets"]:

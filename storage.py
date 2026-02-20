@@ -47,7 +47,7 @@ def get_config_path() -> Path:
 # a lot of packages.
 def load_packages() -> dict[str, Package]:
     with open(get_packreg_path(), "r") as f:
-        entries: dict[str, dict[str, str]] = json.load(f)
+        entries: dict[str, dict[str, str | list[str]]] = json.load(f)
     return {
         name: Package.from_dict(name, entry) for name, entry in entries.items()
     }

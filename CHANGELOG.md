@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0-alpha.1] 2026-02-20
+
+### Added
+- `tags` field to the registry, which is shown in the search results and package info. This allows package authors to categorize their packages with tags, making it easier for users to find relevant packages.
+- `sha256` field to the registry, which is used to verify the integrity of the downloaded package.
+- `--tags` option to the `search` command, which allows users to filter search results by tags.
+- `(installed)` indicator in search results, which shows which packages are already installed.
+- `--detailed` option to the `search` command, which shows more detailed information about the packages in the search results, including tags.
+
+### Changed
+- Registry now has separate `description`, and `tags` fields.
+- Search results now show the package description and tags (if available) in a more organized way.
+- View results now show the package description and tags (if available) in a more organized way.
+- You can now search for packages by tags using the `--tags` option in the `search` command.
+
+### Deprecated
+- None for now.
+
+### Removed
+- None for now.
+
+### Fixed
+- Fixed some bugs and edge cases in the codebase, and improved the overall stability and performance of the application.
+
+### Security
+- Finally added `SHA256` checksums to the registry, which allows users to verify the integrity of the downloaded packages and protect against tampering and corruption.
+
 ## [0.2.0] 2026-02-20
 
 ### Added
