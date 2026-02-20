@@ -21,7 +21,7 @@ from packages import Package
 from network import download_binary, fetch_registry, get_file_size, verify_checksum
 from storage import get_bin_dir, get_config_path, init_dir_structure, load_config, load_packages, save_packages
 
-__version__ = "0.3.0-alpha.1"
+__version__ = "0.3.0-alpha.2"
 
 def version_callback(value: bool):
     if value:
@@ -396,7 +396,7 @@ def update(package: Optional[str] = None):
 
 @app.command(name="update-self")
 def update_self(prerelease: bool = typer.Option(False, "--pre-release", help="Include prerelease versions in the update check")):
-    """Updates CentiPM itself to the latest version on GitHub releases"""
+    """Updates CentiPM itself to the latest stable or pre-release version on GitHub releases"""
 
     if not os.access(sys.executable, os.W_OK):
         log("Cannot update CentiPM: no write permission to the binary!", level="FAIL", bold=True)
@@ -480,7 +480,7 @@ def update_self(prerelease: bool = typer.Option(False, "--pre-release", help="In
         log("For the meantime, you can manually download the binary for the closest-like platform in the GitHub releases page, like Linux.", level="GUIDE")
         return
 
-    temp_path = Path(tempfile.gettempdir()) / "centipm_update"
+    temp_path = Path(sys.executable).parent / "centipm_update.tmp"
     log(f"Updating CentiPM from version {__version__} to {latest_version}...", level="LOAD", bold=True)
     download_binary(
         "centipm",   

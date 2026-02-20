@@ -110,11 +110,16 @@ Read the comments in the [default registries.toml](https://github.com/tyydev1/di
 
 # Security Warning
 
-CentiPM currently does not implement integrity verification (e.g., SHA256 checks). Use trusted registries only. It is up to the user to ensure that they trust the registries they are using. Don't worry, I am working on adding sha256 hash verification for downloaded packages to ensure integrity and security, but for now, just be careful.
+The latest stable version of CentiPM currently does not implement integrity verification (e.g., SHA256 checks). Use trusted registries only. It is up to the user to ensure that they trust the registries they are using. Don't worry, I am working on adding sha256 hash verification for downloaded packages to ensure integrity and security, but for now, just be careful.
 
 It is recommended to just use the default registry (Dime/CentiPM Registry), as it is maintained by me and I will try my best to ensure that it only contains safe and trustworthy packages. If you want to use a custom registry, make sure to review the packages in it before installing them.
 
-# To-do List
+### Security Relief
+
+*The latest alpha version or above, 0.3.0-alpha.1, has successfully implemented SHA256 integrity verification.*
+
+# To-do List 
+### (Pre-rc releases that already implement these will not affect the to-do list.)
 - [x] Implement basic package manager functionality (installing, upgrading, listing, removing packages).
 - [ ] Implement unchecked features in the usage section (e.g. registry management).
 - [ ] Add `runner` field on the registry fields for script files.

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0-alpha.2] 2026-02-21
+
+### Fixed
+- `update-self` now works if centipm is in PATH.
+This means that every version below this release won't have `update-self` functioning properly. I am sorry.
+
 ## [0.3.0-alpha.1] 2026-02-20
 
 ### Added
