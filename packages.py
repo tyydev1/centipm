@@ -7,22 +7,28 @@ class Package:
     version: str
     author: str = "unknown"
     description: str = "This is a package"
+    runner: Optional[str] = None
     tags: Optional[list[str]] = None
 
     def __repr__(self) -> str:
-        return f"package '{self.name}' by {self.author} with version {self.version}"
+        return f"'{self.runner} package '{self.name}' by {self.author} with version {self.version}"
     
     def __str__(self) -> str:
-        return f"{self.author}/{self.name} {self.version}"
+        return f"{self.author}/{self.name} :{self.runner}: {self.version}"
     
     def to_dict(self) -> dict:
-        return {
+        d = {
             "name": self.name,
             "version": self.version,
             "author": self.author,
             "description": self.description,
-            "tags": self.tags
+            "runner": self.runner,
+            "tags": self.tags,
         }
+        if self.runner:
+            d["runner"] = self.runner
+        if self.tags:
+            d["tags"] = self.tags
     
     @classmethod
     def from_dict(cls, name: str, data: dict) -> 'Package':
@@ -31,6 +37,7 @@ class Package:
             version=data.get("version", "Unknown"),
             author=data.get("author", "unknown"),
             description=data.get("description", "This is a package"),
+            runner=data.get("runner", None),
             tags=data.get("tags", None)
         )
 
@@ -48,7 +55,8 @@ class RegistryPackage(Package):
             version=self.version,
             author=self.author,
             description=self.description,
-            tags=self.tags
+            tags=self.tags,
+            runner=self.runner
         )
 
     def to_dict(self) -> dict:
@@ -56,8 +64,6 @@ class RegistryPackage(Package):
         base["url"] = self.url
         if self.sha256:
             base["sha256"] = self.sha256
-        if self.tags:
-            base["tags"] = self.tags
         return base
 
     @classmethod
@@ -66,10 +72,11 @@ class RegistryPackage(Package):
             raise ValueError("URL is required and cannot be empty")
         return RegistryPackage(
             name=name,
-            version=data.get("version", "Unknown"),
+            version=data.get("version", "unknown"),
             author=data.get("author", "unknown"),
             description=data.get("description", "This is a package"),
             url=data["url"],
             sha256=data.get("sha256", None),
-            tags=data.get("tags", None)
+            runner=data.get("runner", None),
+            tags=data.get("tags", None),
         )

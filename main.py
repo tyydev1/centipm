@@ -21,11 +21,11 @@ from packages import Package
 from network import download_binary, fetch_registry, get_file_size, verify_checksum
 from storage import get_bin_dir, get_config_path, init_dir_structure, load_config, load_packages, save_packages
 
-__version__ = "0.3.0-alpha.2"
+__version__ = "0.3.0-beta.1"
 
 def version_callback(value: bool):
     if value:
-        typer.echo(typer.style(f"Centi Package Manager (centipm) version {__version__}", fg=typer.colors.BRIGHT_CYAN, bold=True))
+        typer.echo(typer.style(f"Centi Package Manager (centipm) v{__version__}", fg=typer.colors.BRIGHT_CYAN, bold=True))
         raise typer.Exit()
 
 app = typer.Typer(
@@ -310,7 +310,7 @@ def search(query: str,
 )
 def run(package: str, extra: Optional[list[str]] = typer.Argument(None)):
     """Execute an installed package"""
-    if package not in load_packages():
+    if package not in (packages := load_packages()):
         log(f"Package '{package}' is not installed!", level="FAIL", bold=True)
         return
     if not Path.exists(get_bin_dir() / package):
@@ -319,7 +319,11 @@ def run(package: str, extra: Optional[list[str]] = typer.Argument(None)):
         log("If this was unintentional, please submit an issue on the GitHub repository of this project!", level="GUIDE")
         log("This is not the fault of the package, do not submit an issue to the package binary unless completely sure.", level="GUIDE")
         return
-    subprocess.run([str(get_bin_dir() / package)] + (extra or []))
+
+    if runner := packages[package].runner:
+        subprocess.run([runner, str(get_bin_dir() / package)] + (extra or []))
+    else:
+        subprocess.run([str(get_bin_dir() / package)] + (extra or []))
 
 @app.command()
 def reinstall(package: str, version: str = "latest", dim: bool = typer.Option(False, "--dim/--no-dim", help="Dim the output instead of showing it in bright colors")):
