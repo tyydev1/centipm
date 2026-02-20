@@ -2,7 +2,7 @@
 
 # CentiPM
 
-**A compact, standalone environmental package manager.**
+**A compact, standalone ~~package~~ binary manager.**
 
 </div>
 
@@ -11,26 +11,30 @@
 # Disclaimer(s)
 
 - CentiPM is currently in very early development. Expect many bugs, missing features, and breaking changes. Use at your own risk.
-- CentiPM (currently) is only test supported on Linux, and may not work properly on other platforms. I will try to add support for other platforms in the future, but for now, Linux is the only officially supported platform. If you want to use CentiPM on an unsupported platform, you can try it out and see if it works, but keep in mind that it may not work properly, and you may encounter bugs and issues that I am not aware of.
+- CentiPM (currently) is only tested on Linux, and may not work properly on other platforms.
+- If you encounter instructions that say they use Python 3.14, that's because it's my working Python version, but if it works with something below, please let me know, so I can update the documentation and lower the required Python version.
 
 - CentiPM is a binary package manager, which means that it installs packages as pre-compiled binaries. It does not compile packages from source code, nor does it have any support for package dependencies (yet) and archive formats (e.g. .zip, .tar.gz, etc.). It simply downloads the binary file from the registry and saves it to the bin directory.
-- I am working on adding support for package dependencies and archive formats, but it is not a priority at the moment. The current focus is on getting the core functionality of installing and upgrading packages working smoothly, and then adding additional features later on. Keep in mind that I am the sole developer of this project, and I am working on it in my free time, so progress may be slow and unpredictable. If you want to contribute to the project, please feel free to submit a pull request or open an issue with your ideas and suggestions.
+- I am working on adding support for stuff on the [To-do List](#to-do-list), do keep in mind that I am a solo developer and I am doing this in my free time.
 
-- CentiPM is not affiliated with any other package manager or registry. It is a completely independent project, and does not use any existing package manager or registry as a backend. It is built from the ground up, with the goal of being as simple and lightweight as possible.
-- CentiPM is not intended to replace existing package managers, but rather to provide a simple and lightweight alternative for users who want to manage their packages without the overhead of a full-fledged package manager. It is designed to be used alongside existing package managers, and can coexist with them without any issues.
+- CentiPM is not affiliated with any other package manager or registry.
+- CentiPM is not intended to replace existing package managers (but you totally can).
 
+# Why You Should Use CentiPM
+
+Honestly, you shouldn't, at least not yet. CentiPM is in very early development, and it is more of a learning project for me to practice and have fun coding. If this project turns out the way I hope it will, then it may be a good alternative. Stay tuned.
 
 # Installation
 
 ## Supported Platforms
-**CENTIPM IS ONLY TEST SUPPORTED ON LINUX!**
+**CENTIPM IS ONLY TESTED ON LINUX!**
 
 - **Linux** (tested on CachyOS, aka my distro that I coded this on, but should work on any modern Linux distro)
-- *MacOS* (untested, but should work as long as Python 3.14 is installed, and because it's very similar to Linux (.sh scripts should work fine))
+- ~~macOS~~ (untested, but should work as long as Python ~3.14 is installed, and because it's very similar to Linux (.sh scripts should work fine))
 
-## Unsupported Platforms (but should work in theory)
+## Unsupported Platforms (experimental)
 
-- **Windows**: untested, very experimental and may not work at all, but should work in theory as long as Python 3.14 is installed, and because it's just downloading binaries, it should be able to download .exe files and run them without any issues)
+- **Windows**: untested, very experimental and may not work at all, but should work in theory with Python ~3.14, and because it's just downloading binaries, it should be able to download .exe files, but Paths are a bit messy. Though some binaries on the registry may not have Windows support, do not submit an issue to this repository, submit it to the registry repository instead.
 
 ## 1. Releases
 
@@ -43,10 +47,16 @@ Run this command:
 chmod +x <path-to-centipm-binary>
 ```
 
-You can run it directly (requires explicit path), or assign it to your PATH. (Look it up, I'm not explaining how to put stuff in PATH)
+From there, you can rename the binary to `centipm` for easier use, and move it to a directory in your PATH (e.g. `/usr/local/bin` on Linux). If you're a little weewee here's the command for that:
+
+```bash
+mv <path-to-centipm-binary> /usr/local/bin/centipm
+```
 
 ### Source Code
 Unzip the source code, and run `pip install .` in the root directory. This will install the `centipm` command globally, and you can run it from anywhere.
+
+**BEWARE**: Look the warning below in the [Build from Source](#2-build-from-source) section, as the `update-self` command may not work properly if you install using this method.
 
 ## 2. Build from source
 
@@ -59,9 +69,17 @@ cd centipm
 
 Then run `pip install .` in the root directory. This will install the `centipm` command globally, and you can run it from anywhere.
 
+**BEWARE**: The `update-self` command may not work properly if you install using this method. I highly recommend using the attached binary from the releases page if you want to use the `update-self` command, as it is designed to update the binary itself, and the releases still show pre-release versions, so you can still get the latest features and updates without having to build from source.
+
 # Usage
 
-Run `centipm --help` to see the available commands and options. The most basic usage is `centipm install <package>`, which will install a package from the registry. You can also run `centipm upgrade` to upgrade all installed packages, or `centipm upgrade --package <package>` to upgrade a specific package.
+Run `centipm --help` to see the available commands and options. The most basic usage is `centipm install <package>`, which will install a package from the registry. You can also run `centipm update` to upgrade all installed packages, or `centipm update --package <package>` to upgrade a specific package.
+
+To put all your binaries to PATH (though I don't recommend this, you can just use the `centipm run <package>` command), you can add the following line to your shell configuration file (e.g. `~/.bashrc` or `~/.zshrc`):
+
+```bash
+export PATH="$HOME/.centipm/bin:$PATH"
+```
 
 **List of available and planned commands (checkmarked means complete):**
 - [x] `install <package>`: Installs a package from the registry.
@@ -70,7 +88,7 @@ Run `centipm --help` to see the available commands and options. The most basic u
 - [x] `registry`: Shows the registry URL, 
 - [x] `config`: Shows the config file path.
 - [x] `remove <package>`: Uninstalls a package.
-- [ ] `search <query>`: Searches for packages in the registry matching the query.
+- [x] `search <query>`: Searches for packages in the registry matching the query.
 - [x] `run <package> [args...]`: Runs the binary of the specified package with optional arguments.
 - [ ] `registry add <registry_url>`: Adds a new registry URL to the config file.
 - [ ] `registry remove <registry_url>`: Removes a registry URL from the config file
@@ -87,18 +105,38 @@ Your registry URL should point to a `registries.toml` file that follows the same
 
 ## Registry Fields
 
-Read the comments in the [default registries.toml](https://github.com/tyydev1/centipm-registry/blob/main/registries.toml) file for a guide on the required fields and format for adding packages to your registry.
+Read the comments in the [default registries.toml](https://github.com/tyydev1/dime-centipm-registry/blob/main/registries.toml) file for a guide on the required fields and format for adding packages to your registry.
+
+# Security Warning
+
+CentiPM currently does not implement integrity verification (e.g., SHA256 checks). Use trusted registries only. It is up to the user to ensure that they trust the registries they are using. Don't worry, I am working on adding sha256 hash verification for downloaded packages to ensure integrity and security, but for now, just be careful.
+
+It is recommended to just use the default registry (Dime/CentiPM Registry), as it is maintained by me and I will try my best to ensure that it only contains safe and trustworthy packages. If you want to use a custom registry, make sure to review the packages in it before installing them.
 
 # To-do List
 - [x] Implement basic package manager functionality (installing, upgrading, listing, removing packages).
-- [ ] Implement unchecked features in the usage section (e.g. search, registry management).
-- [ ] Add support for package dependencies.
+- [ ] Implement unchecked features in the usage section (e.g. registry management).
+- [ ] Downgrade Python version as low as possible without sacrificing any functionality, so your ~~smart fridge~~ device can run it too.
+- [ ] Add sha256 hash verification for downloaded packages to ensure integrity and security.
+- [ ] Add a Rust extention module early (via PyO3) for improved performance.
 - [ ] Add support for archive formats (e.g. .zip, .tar.gz, etc.).
 - [ ] Add support for multiple registries and registry prioritization.
+- [ ] Add support for package dependencies.
 - [ ] Add support for package versioning and version constraints.
-- [ ] Add sha256 hash verification for downloaded packages to ensure integrity and security.
-- [ ] Add Rust's pymodule for better performance, using the PyO3 library.
 
 # Contributing
 
 Contributions are welcome! If you want to contribute, please fork the repository and create a pull request with your changes. Make sure to follow the existing code style and include tests for any new functionality.
+
+# License
+
+This project is protected under the MIT License. See the [LICENSE](LICENSE) file for more details.
+
+Cheers,
+tyydev1
+
+---
+
+## Future Projects (very planned)
+- [ ] millicent-dime - centipm shrunk down. A micro package manager that only supports installing and removing packages, and has a smaller binary size. But, it supports Dime's registry format, so it can use the same registry as CentiPM, and it can be a good alternative for users who want a smaller and simpler package manager.
+- [ ] rscentipm - a completely Rust implementation of CentiPM, which will be faster and more efficient than the Python version. This is the last thing on the to-do list because it suggests that this project is already complete and fully-featured, which is not the case yet.

@@ -29,7 +29,7 @@ def init_dir_structure() -> None:
             f.write("# in the future documentation.\n")
             f.write("\n")
             f.write("[registry]\n")
-            f.write('url = "https://raw.githubusercontent.com/tyydev1/dime-centipm-registry/main/registries.toml"\n')
+            f.write('url = "https://raw.githubusercontent.com/tyydev1/dime-centipm-registry/refs/heads/main/registries.toml"\n')
 
 def get_root() -> Path:
     return Path.home() / ".centipm"

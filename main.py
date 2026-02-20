@@ -10,13 +10,15 @@ from typing import Optional
 # third-party imports
 import requests
 import typer
+from rich.progress import Progress
+from rich.console import Console
 
 # local imports
 from packages import Package
-from network import download_binary, fetch_registry
+from network import download_binary, fetch_registry, get_file_size
 from storage import get_bin_dir, get_config_path, init_dir_structure, load_config, load_packages, save_packages
 
-__version__ = "0.1.1-dev"
+__version__ = "0.2.0-alpha.1"
 
 def version_callback(value: bool):
     if value:
@@ -26,8 +28,36 @@ def version_callback(value: bool):
 app = typer.Typer(
     context_settings={
         "help_option_names": ['-h', '--help']
-    }
+    },
+    add_completion=False,
+    no_args_is_help=True
 )
+
+def log_load(message: str, task, dim: bool = False):
+    """Runs a task with a LOAD spinner"""
+    console = Console()
+    
+    with console.status(
+        typer.style(f"LOAD ", fg=typer.colors.BRIGHT_BLUE, bold=not dim) + 
+        typer.style(message, dim=dim)
+    ):
+        result = task()
+    return result
+
+def log(message: str, level: str = "INFO", bold: bool = False, dim: bool = False) -> None:
+    color_map = {
+        "INFO": typer.colors.CYAN,
+        "LOAD": typer.colors.BRIGHT_BLUE,
+        "FAIL": typer.colors.BRIGHT_RED,
+        "DONE": typer.colors.BRIGHT_GREEN,
+        "WARN": typer.colors.BRIGHT_YELLOW,
+        "GUIDE": typer.colors.YELLOW,
+        "NOTE": typer.colors.BRIGHT_CYAN
+    }
+    color = color_map.get(level, typer.colors.WHITE)
+    styled_message = typer.style(level, fg=color, bold=bold, dim=dim)
+    message = typer.style(message, bold=bold, dim=dim)
+    typer.echo(f"{styled_message} {message}")
 
 def dimmify(text: str) -> str:
     return typer.style(text, dim=True)
@@ -61,117 +91,102 @@ def config():
 @app.command()
 def install(package: str, version: str = "latest", dim: bool = typer.Option(False, "--dim/--no-dim", help="Dim the output instead of showing it in bright colors")):
     """Installs a package"""
-    if not dim:
-        typer.echo(typer.style(f"[LOAD] Finding '{package}' version {version}...", fg=typer.colors.BRIGHT_BLUE, bold=True))
-    else:
-        typer.echo(dimmify(f"[LOAD] Finding '{package}' version {version}..."))
+    log(f"Finding '{package}' version {version}...", level="LOAD", bold=not dim, dim=dim)
     registry_url = load_config()["registry"]["url"]
     registries = fetch_registry(registry_url)
 
     if package in load_packages():
-        typer.echo(typer.style("[FAIL] Package already installed!", fg=typer.colors.BRIGHT_RED, bold=True)) # TODO: Implement reinstall command
+        log("Package already installed!", level="FAIL", bold=True) # TODO: Implement reinstall command
         return
     if package not in registries:
-        if not dim:
-            typer.echo(typer.style("[FAIL] Package doesn't exist in the registry!", 
-                                   fg=typer.colors.BRIGHT_RED, 
-                                   bold=True))
-            typer.echo(typer.style("[GUIDE] If this package exists in another registry, please modify"
-                                   " the registry URL inside ~/.centipm/config.toml",
-                                   fg=typer.colors.YELLOW))
-        else:
-            typer.echo(dimmify("[FAIL] Package doesn't exist in the registry!"))
-            typer.echo(dimmify("[GUIDE] If this package exists in another registry, please modify"
-                               " the registry URL inside ~/.centipm/config.toml"))
+        log("Package doesn't exist in the registry!", level="FAIL", bold=not dim, dim=dim)
+        log("If this package exists in another registry, please modify the registry URL inside ~/.centipm/config.toml", level="GUIDE", dim=dim)
         return
 
     # TODO: Versions
-    if not dim:
-        typer.echo(typer.style(f"[LOAD] Found '{package}'! Installing...", fg=typer.colors.BRIGHT_BLUE, bold=True))
+
+    log(f"Found '{package}'! Installing...", level="LOAD", bold=not dim, dim=dim)
+    
+    file_size = get_file_size(registries[package].url)
+    if file_size > 0:
+        with Progress(transient=True) as progress:
+            task = progress.add_task("Downloading...", total=file_size)
+            download_binary(
+                package,
+                registries[package].url,
+                on_progress=lambda size: progress.update(task, advance=size)
+            )
     else:
-        typer.echo(dimmify(f"[LOAD] Found '{package}'! Installing..."))
-    download_binary(package, registries[package].url)
-    if not dim:
-        typer.echo(typer.style(f"[LOAD] Successfully installed '{package}'! Saving entry..", fg=typer.colors.BRIGHT_BLUE, bold=True))
-    else:
-        typer.echo(dimmify(f"[LOAD] Successfully installed '{package}'! Saving entry.."))
+        console = Console()
+        with console.status("Downloading..."):
+            download_binary(package, registries[package].url)
+
+    log(f"Successfully installed '{package}'!", level="INFO", bold=not dim, dim=dim)
+    log("Saving entry..", level="LOAD", bold=not dim, dim=dim)
 
     new_packages = load_packages()
     new_packages[registries[package].name] = registries[package].to_package()
     save_packages(new_packages)
-    if not dim:
-        typer.echo(typer.style(f"[DONE] Successfully installed '{package}'! Run it with 'centipm run {package}'", fg=typer.colors.BRIGHT_GREEN, bold=True))
-    else:
-        typer.echo(dimmify(f"[DONE] Successfully installed '{package}'! Run it with 'centipm run {package}'"))
+    log(f"Successfully installed '{package}'! Run it with 'centipm run {package}'", level="DONE", bold=not dim, dim=dim)
 
 @app.command()
 def remove(package: str, dim: bool = typer.Option(False, "--dim/--no-dim", help="Dim the output instead of showing it in bright colors")):
     """Removes an installed package"""
-    if not dim:
-        typer.echo(typer.style(f"[LOAD] Finding {package}...", fg=typer.colors.BRIGHT_BLUE, bold=True))
-    else:
-        typer.echo(dimmify(f"[LOAD] Finding {package}..."))
+    log(f"Finding {package}...", level="LOAD", bold=not dim, dim=dim)
     if package not in load_packages():
-        if dim:
-            typer.echo(dimmify(f"[FAIL] Package '{package}' is not installed!"))
-        else:
-            typer.echo(typer.style(f"[FAIL] Package '{package}' is not installed!", fg=typer.colors.BRIGHT_RED, bold=True))
+        log(f"Package '{package}' is not installed!", level="FAIL", bold=not dim, dim=dim)
         return
     
-    if not dim:
-        typer.echo(typer.style(f"[LOAD] Found '{package}'! Removing...", fg=typer.colors.BRIGHT_BLUE, bold=True))
-    else:
-        typer.echo(dimmify(f"[LOAD] Found '{package}'! Removing..."))
+    log(f"Found '{package}'!", level="INFO", bold=not dim, dim=dim)
+    log(f"Removing {package}...", level="LOAD", bold=not dim, dim=dim)
     (get_bin_dir() / package).unlink()
-    if not dim:
-        typer.echo(typer.style(f"[LOAD] Successfully removed '{package}'! Removing entry...", fg=typer.colors.BRIGHT_BLUE, bold=True))
-    else:
-        typer.echo(dimmify(f"[LOAD] Successfully removed '{package}'! Removing entry..."))
+    log(f"Removing entry...", level="LOAD", bold=not dim, dim=dim)
 
+    log(f"Saving entry..", level="LOAD", bold=not dim, dim=dim)
     new_packages = load_packages()
     del new_packages[package]
     save_packages(new_packages)
-    if not dim:
-        typer.echo(typer.style(f"[DONE] Successfully removed '{package}'!", fg=typer.colors.BRIGHT_GREEN, bold=True))
-    else:
-        typer.echo(dimmify(f"[DONE] Successfully removed '{package}'!"))
+    log(f"Successfully removed '{package}'!", level="DONE", bold=not dim, dim=dim)
 
 @app.command()
 def view():
     """Lists the installed packages"""
     packages = load_packages()
     if not packages:
-        typer.echo(typer.style(
-            "No installed packages yet, get some using the 'install' command!",
-            fg=typer.colors.BRIGHT_YELLOW,
-            bold=True
-        ))
+        log("No installed packages yet, get some using the 'install' command!", level="WARN", bold=True)
         return
 
     for package, info in packages.items():
-        typer.echo(
-            typer.style(
-                f"{info.author}/",
-                fg=typer.colors.BRIGHT_BLUE,
-                bold=True
-            ),
-            nl=False
-        )
-        typer.echo(
-            typer.style(
-                f"{package} ",
-                bold=True
-            ), 
-            nl=False
-        )
-        typer.echo(
-            typer.style(
-                info.version,
-                fg=typer.colors.BRIGHT_GREEN,
-                bold=True
-            )
-        )
-        
+        typer.echo(typer.style(f"{info.author}/", fg=typer.colors.BRIGHT_BLUE, bold=True), nl=False)
+        typer.echo(typer.style(f"{package} ", bold=True), nl=False)
+        typer.echo(typer.style(info.version, fg=typer.colors.BRIGHT_GREEN, bold=True))
+        typer.echo(f"    {info.description}")
+
+@app.command()
+def search(query: str, author: bool = typer.Option(False, "--author", help="Search by author instead of package name and description")):
+    """Searches for a package in the registry"""
+    log(f"Searching for '{query}' in the registry...", level="LOAD", bold=True)
+    registry_url = load_config()["registry"]["url"]
+    registries = fetch_registry(registry_url)
+
+    results = []
+    for name, info in registries.items():
+        if not author:
+            if query.lower() in name.lower() or query.lower() in info.description.lower():
+                results.append((name, info))
+        else:
+            if query.lower() in info.author.lower():
+                results.append((name, info))
+    
+    if not results:
+        log(f"No results found for '{query}'!", level="WARN", bold=True)
+        return
+    
+    log(f"Found {len(results)} result(s) for '{query}':", level="INFO", bold=True)
+    for name, info in results:
+        typer.echo(typer.style(f"{info.author}/", fg=typer.colors.BRIGHT_BLUE, bold=True), nl=False)
+        typer.echo(typer.style(f"{name} ", bold=True), nl=False)
+        typer.echo(typer.style(info.version, fg=typer.colors.BRIGHT_GREEN, bold=True))
         typer.echo(f"    {info.description}")
 
 @app.command(
@@ -184,14 +199,13 @@ def view():
 def run(package: str, extra: Optional[list[str]] = typer.Argument(None)):
     """Execute an installed package"""
     if package not in load_packages():
-        typer.echo(typer.style(f"[FAIL] Package '{package}' is not installed!", fg=typer.colors.BRIGHT_RED, bold=True))
+        log(f"Package '{package}' is not installed!", level="FAIL", bold=True)
         return
     if not Path.exists(get_bin_dir() / package):
-        typer.echo(typer.style(f"[FAIL] Binary for '{package}' is missing!", fg=typer.colors.BRIGHT_RED, bold=True))
-        typer.echo(typer.style("[GUIDE] This shouldn't happen, unless the files was manually removed.\n"
-                               "[GUIDE] If this was unintentional, please submit an issue on the GitHub repository of this project!\n"
-                               "[GUIDE] This is not the fault of the package, do not submit an issue to the package binary unless completely sure.",
-                               fg=typer.colors.YELLOW))
+        log(f"Binary for '{package}' is missing!", level="FAIL", bold=True)
+        log("This shouldn't happen, unless the files was manually removed.", level="GUIDE")
+        log("If this was unintentional, please submit an issue on the GitHub repository of this project!", level="GUIDE")
+        log("This is not the fault of the package, do not submit an issue to the package binary unless completely sure.", level="GUIDE")
         return
     subprocess.run([str(get_bin_dir() / package)] + (extra or []))
 
@@ -207,37 +221,33 @@ def update(package: Optional[str] = None):
     registries = fetch_registry(load_config()["registry"]["url"])
     packages = load_packages()
 
+    if not packages:
+        log("No installed packages yet, get some using the 'install' command!", level="WARN", bold=True)
+        return
+
     if package:
         if package not in packages:
-            typer.echo(typer.style(f"[FAIL] Package '{package}' is not installed!", fg=typer.colors.BRIGHT_RED, bold=True))
+            log(f"Package '{package}' is not installed!", level="FAIL", bold=True)
             return
         if package not in registries:
-            typer.echo(typer.style(f"[FAIL] Package '{package}' doesn't exist in the registry!", fg=typer.colors.BRIGHT_RED, bold=True))
+            log(f"Package '{package}' doesn't exist in the registry!", level="FAIL", bold=True)
             return
         
         if registries[package].version == load_packages()[package].version:
-            typer.echo(typer.style(f"[WARN] Package '{package}' is up-to-date!", fg=typer.colors.BRIGHT_YELLOW, bold=True))
-            if typer.confirm("Reinstall anyway?"): # I dug and found this feature myself!
+            log(f"Package '{package}' is up-to-date!", level="WARN", bold=True)
+            if typer.confirm("Reinstall anyway?"):
                 reinstall(package, dim=True)
-                typer.echo(typer.style(f"[DONE] Successfully reinstalled '{package}'!", fg=typer.colors.BRIGHT_GREEN, bold=True))
+                log(f"Successfully reinstalled '{package}'!", level="DONE", bold=True)
             return
         
         reinstall(package, dim=True)
-        typer.echo(typer.style(f"[DONE] Successfully updated '{package}'!", fg=typer.colors.BRIGHT_GREEN, bold=True))
-    
-    if not packages:
-        typer.echo(typer.style(
-            "No installed packages yet, get some using the 'install' command!",
-            fg=typer.colors.BRIGHT_YELLOW,
-            bold=True
-        ))
-        return
+        log(f"Successfully updated '{package}'!", level="DONE", bold=True)
     
     if not package:
-        typer.echo(typer.style("[NOTE] Executing full upgrade", fg=typer.colors.CYAN, bold=True))
+        log("Executing full upgrade", level="NOTE", bold=True)
         typer.echo("This will try to update all installed packages.")
         if not typer.confirm("Continue?", default=True):
-            typer.echo(typer.style("[FAIL] Process aborted.", fg=typer.colors.BRIGHT_RED, bold=True))
+            log("Process aborted.", level="FAIL", bold=True)
             return
         
         # Iiiit's design question time! Should we prompt the user for literally every package that's up-to-date?
@@ -258,22 +268,22 @@ def update(package: Optional[str] = None):
         for package in packages:
             if registries[package].version == packages[package].version:
                 if not dont_reinstall: 
-                    typer.echo(typer.style(f"[WARN] Package '{package}' is up-to-date! Reinstalling anyway..", fg=typer.colors.BRIGHT_YELLOW, bold=True))
+                    log(f"Package '{package}' is up-to-date! Reinstalling anyway..", level="WARN", bold=True)
                     reinstall(package, dim=True)
-                    typer.echo(typer.style(f"[DONE] Reinstalled '{package}'!", fg=typer.colors.BRIGHT_GREEN, bold=True))
+                    log(f"Reinstalled '{package}'!", level="DONE", bold=True)
                     any_updated = True
                 continue
             
             # If it DOESN'T match (previous check uses continue)
             reinstall(package, dim=True)
-            typer.echo(typer.style(f"[DONE] Successfully updated '{package}'!", fg=typer.colors.BRIGHT_GREEN, bold=True))
+            log(f"Successfully updated '{package}'!", level="DONE", bold=True)
             any_updated = True
 
         if not any_updated:
-            typer.echo(typer.style("[NOTE] No updates installed.", fg=typer.colors.BRIGHT_CYAN, bold=True))
+            log("No updates installed.", level="NOTE", bold=True)
 
 @app.command(name="update-self")
-def update_self():
+def update_self(prerelease: bool = typer.Option(False, "--pre-release", help="Include prerelease versions in the update check")):
     """Updates CentiPM itself to the latest version on GitHub releases"""
 
     platform_map = {
@@ -283,26 +293,48 @@ def update_self():
     }
     system = platform.system()
     if system not in platform_map:
-        typer.echo(typer.style(f"[FAIL] Unsupported platform: {system}", fg=typer.colors.BRIGHT_RED, bold=True))
-        typer.echo(typer.style("[GUIDE] Wha- how did get this error? I thought I covered all platforms!", fg=typer.colors.YELLOW))
-        typer.echo(typer.style("[GUIDE] Please submit an issue on the GitHub repository of this project, including the output of 'platform.system()' and 'platform.version()'!", fg=typer.colors.YELLOW))
-        typer.echo(typer.style("[GUIDE] Seriously though, CentiPM should work on any platform with Python 3.14. Maybe install the Linux (manually, I'm sorry) version in the meantime?", fg=typer.colors.YELLOW))
+        log(f"Unsupported platform: {system}", level="FAIL", bold=True)
+        log("Wha- how did you get this error? I thought I covered all platforms!", level="GUIDE")
+        log("Please submit an issue on the GitHub repository of this project, including the output of 'platform.system()' and 'platform.version()'!", level="GUIDE")
+        log("Seriously though, CentiPM should work on any platform with Python 3.14. Maybe install the Linux (manually, I'm sorry) version in the meantime?", level="GUIDE")
         return
 
     target_name = platform_map[system]
     asset_url = None
 
     if not typer.confirm("This will update CentiPM itself. Continue?", default=True):
-        typer.echo(typer.style("[FAIL] Process aborted.", fg=typer.colors.BRIGHT_RED, bold=True))
+        log("Process aborted.", level="FAIL", bold=True)
         return
     
-    response = requests.get("https://api.github.com/repos/tyydev1/centipm/releases/latest")
-    response.raise_for_status()
+    target_release_type = "pre-release" if prerelease else "release"
 
-    json = response.json()
+    if prerelease:
+        typer.echo("Pre-release versions may be unstable. This flag will check for the absolutely newest release, including pre-releases.")
+        if not typer.confirm("Continue? ", default=True): # set to true because the user already used the flag
+            log("Skipping pre-release scans..", level="INFO", bold=True)
+            target_release_type = "release"
+
+    match target_release_type:
+        case "pre-release":
+            response = requests.get("https://api.github.com/repos/tyydev1/centipm/releases")
+            response.raise_for_status()
+            releases = response.json()
+
+            if not releases:
+                log("No releases found!", level="FAIL", bold=True)
+                return
+            
+            json = releases[0]
+
+        case "release":
+            response = requests.get("https://api.github.com/repos/tyydev1/centipm/releases/latest")
+            response.raise_for_status()
+
+            json = response.json()
+
     latest_version = json["tag_name"]
     if latest_version.lstrip("v") == __version__:
-        typer.echo(typer.style(f"[NOTE] You are already using the latest version of CentiPM ({__version__})!", fg=typer.colors.BRIGHT_CYAN, bold=True))
+        log(f"You are already using the latest version of CentiPM ({__version__})!", level="NOTE", bold=True)
         return
     
     for asset in json["assets"]:
@@ -311,12 +343,12 @@ def update_self():
             break
 
     if not asset_url:
-        typer.echo(typer.style(f"[FAIL] Could not find asset for platform '{system}'!", fg=typer.colors.BRIGHT_RED, bold=True))
-        typer.echo(typer.style("[GUIDE] For the meantime, you can manually download the binary for the closest-like platform in the GitHub releases page, like Linux.", fg=typer.colors.YELLOW))
+        log(f"Could not find asset for platform '{system}'!", level="FAIL", bold=True)
+        log("For the meantime, you can manually download the binary for the closest-like platform in the GitHub releases page, like Linux.", level="GUIDE")
         return
 
     temp_path = Path(tempfile.gettempdir()) / "centipm_update"
-    typer.echo(typer.style(f"[LOAD] Updating CentiPM from version {__version__} to {latest_version}...", fg=typer.colors.BRIGHT_BLUE, bold=True))
+    log(f"Updating CentiPM from version {__version__} to {latest_version}...", level="LOAD", bold=True)
     download_binary(
         "centipm",   
         asset_url,
@@ -324,7 +356,7 @@ def update_self():
     ) # updated this function to take an optional dest param, defaulted to the bin directory
     os.replace(temp_path, sys.executable)
 
-    typer.echo(typer.style("[DONE] Successfully updated CentiPM! Please restart your terminal (though you don't need to) to apply the update.", fg=typer.colors.BRIGHT_GREEN, bold=True))
+    log("Successfully updated CentiPM! Please restart your terminal (though you don't need to) to apply the update.", level="DONE", bold=True)
 
 if __name__ == "__main__":
     app()
