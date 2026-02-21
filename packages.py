@@ -29,6 +29,7 @@ class Package:
             d["runner"] = self.runner
         if self.tags:
             d["tags"] = self.tags
+        return d
     
     @classmethod
     def from_dict(cls, name: str, data: dict) -> 'Package':

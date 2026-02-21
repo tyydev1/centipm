@@ -2,7 +2,7 @@
 
 # CentiPM
 
-**A compact, standalone ~~package~~ binary manager.**
+**A compact, standalone ~~package~~, no, ~~binary~~, wait, now it's an executable artifact manager.**
 
 </div>
 
@@ -10,11 +10,11 @@
 
 # Disclaimer(s)
 
-- CentiPM is currently in very early development. Expect many bugs, missing features, and breaking changes. Use at your own risk.
+- CentiPM is currently in very early development.
 - CentiPM (currently) is only tested on Linux, and may not work properly on other platforms.
 - If you encounter instructions that say they use Python 3.14, that's because it's my working Python version, but if it works with something below, please let me know, so I can update the documentation and lower the required Python version.
 
-- CentiPM is a binary package manager, which means that it installs packages as pre-compiled binaries. It does not compile packages from source code, nor does it have any support for package dependencies (yet) and archive formats (e.g. .zip, .tar.gz, etc.). It simply downloads the binary file from the registry and saves it to the bin directory.
+- CentiPM only accepts *standalone* executable artifacts. You cannot put an archive and expect it works. That is not how binary/executable managers work, though I am working on adding archive support.
 - I am working on adding support for stuff on the [To-do List](#to-do-list), do keep in mind that I am a solo developer and I am doing this in my free time.
 
 - CentiPM is not affiliated with any other package manager or registry.

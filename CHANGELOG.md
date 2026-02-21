@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0-beta.2] 2026-02-21
+
+### *Everything on 0.3.0-beta.1, and..*
+
+### Fixed
+- A fatal bug on the packages class, causing `packages.json` to not have any entries.
+
 ## [0.3.0.beta.1] 2026-02-21
 
 ### *Everything on the 0.3.0-alpha versions, and...*

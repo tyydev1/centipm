@@ -21,7 +21,7 @@ from packages import Package
 from network import download_binary, fetch_registry, get_file_size, verify_checksum
 from storage import get_bin_dir, get_config_path, init_dir_structure, load_config, load_packages, save_packages
 
-__version__ = "0.3.0-beta.1"
+__version__ = "0.3.0-beta.2"
 
 def version_callback(value: bool):
     if value:
@@ -108,7 +108,12 @@ def install(package: str, version: str = "latest", dim: bool = typer.Option(Fals
     """Installs a package"""
     log(f"Finding '{package}' version {version}...", level="LOAD", bold=not dim, dim=dim)
     registry_url = load_config()["registry"]["url"]
-    registries = fetch_registry(registry_url)
+    try:
+        registries = fetch_registry(registry_url)
+    except ConnectionError as e:
+        log(str(e), level="FAIL", bold=True)
+        log("Please check your internet connection and try again.", level="GUIDE")
+        return
 
     if package in load_packages():
         log("Package already installed!", level="FAIL", bold=True) # TODO: Implement reinstall command
@@ -148,6 +153,9 @@ def install(package: str, version: str = "latest", dim: bool = typer.Option(Fals
             if not typer.confirm("Do you want to delete the downloaded file? (Recommended for your safety)", default=True):
                 log("File not deleted. Please manually delete the file at the path below to avoid potential security risks.", level="WARN", bold=True)
                 log(str(get_bin_dir() / package), level="WARN", bold=True)
+                new_packages = load_packages()
+                new_packages[registries[package].name] = registries[package].to_package()
+                save_packages(new_packages)
                 return
             log("Aborting installation and removing downloaded file...", level="LOAD", bold=not dim, dim=dim)
             (get_bin_dir() / package).unlink()
@@ -272,7 +280,12 @@ def search(query: str,
 
     log(f"Searching for packages with '{query}' using {type} in the registry...", level="LOAD", bold=True)
     registry_url = load_config()["registry"]["url"]
-    registries = fetch_registry(registry_url)
+    try:
+        registries = fetch_registry(registry_url)
+    except ConnectionError as e:
+        log(str(e), level="FAIL", bold=True)
+        log("Please check your internet connection and try again.", level="GUIDE")
+        return
 
     results = []
     for name, info in registries.items():
@@ -320,10 +333,18 @@ def run(package: str, extra: Optional[list[str]] = typer.Argument(None)):
         log("This is not the fault of the package, do not submit an issue to the package binary unless completely sure.", level="GUIDE")
         return
 
-    if runner := packages[package].runner:
-        subprocess.run([runner, str(get_bin_dir() / package)] + (extra or []))
-    else:
-        subprocess.run([str(get_bin_dir() / package)] + (extra or []))
+    try:
+        if runner := packages[package].runner:
+            subprocess.run([runner, str(get_bin_dir() / package)] + (extra or []))
+        else:
+            subprocess.run([str(get_bin_dir() / package)] + (extra or []))
+    except FileNotFoundError:
+        if runner:
+            log(f"Runner '{runner}' not found on your system!", level="FAIL", bold=True)
+            log(f"This package requires '{runner}' to run. Please install it and try again.", level="GUIDE")
+        else:
+            log(f"Binary for '{package}' could not be executed!", level="FAIL", bold=True)
+            log("The file may be corrupted. Try reinstalling the package.", level="GUIDE")
 
 @app.command()
 def reinstall(package: str, version: str = "latest", dim: bool = typer.Option(False, "--dim/--no-dim", help="Dim the output instead of showing it in bright colors")):
@@ -334,7 +355,12 @@ def reinstall(package: str, version: str = "latest", dim: bool = typer.Option(Fa
 @app.command()
 def update(package: Optional[str] = None):
     """Updates a package or all packages if no package is specified"""
-    registries = fetch_registry(load_config()["registry"]["url"])
+    try:
+        registries = fetch_registry(load_packages()["registry"]['url'])
+    except ConnectionError as e:
+        log(str(e), level="FAIL", bold=True)
+        log("Please check your internet connection and try again.", level="GUIDE")
+        return
     packages = load_packages()
 
     if not packages:

@@ -12,6 +12,7 @@ from storage import get_bin_dir
 from packages import RegistryPackage
 import requests
 
+
 def verify_checksum(file_path: Path, expected_hash: str) -> bool:
     """Verifies the SHA256 checksum of the file at the given path against the expected hash."""
     sha256 = hashlib.sha256()
@@ -22,8 +23,15 @@ def verify_checksum(file_path: Path, expected_hash: str) -> bool:
 
 def fetch_registry(url: str) -> dict[str, RegistryPackage]:
     """Fetches the registry from the given URL and returns a dictionary of package names to RegistryPackage objects."""
-    response = requests.get(url)
-    response.raise_for_status()
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+    except requests.exceptions.ConnectionError:
+        raise ConnectionError("Could not connect to the registry. Check your internet connection.")
+    except requests.exceptions.HTTPError as e:
+        raise ConnectionError(f"Registry returned an error: {e.response.status_code}")
+    except requests.exceptions.Timeout:
+        raise ConnectionError("Registry request timed out.")
     
     registry = tomllib.loads(response.text)
     return {
