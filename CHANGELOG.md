@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] 2026-02-21
+
+### Added
+- `info` command, detailed package info with offline fallback mode
+- `clean` command, remove orphaned binaries from the bin directory
+- `changelog` command, fetches and renders CHANGELOG.md live from GitHub. Will always show the newest one, though. Will make it show that specific version in the future.
+- `runner` field, lets packages specify an interpreter (sh, python, etc.), used by `run`. Will default to direct execution without an interpreter.
+- `tags` field, categorization, searchable via `--tags` on the `search` command.
+- `sha256` field, checksum verification with tamper detection.
+- `--force` flag on `install`
+- `--detailed` flag on `view`
+- `(installed)` indicator in search results and `info` results
+- `--tags` and `--author` mutually exclusive search flags
+- `update-self` now shows progress bars for the download
+
+### Changed
+- Registry fields now has more stuff.
+- Temp file moved to same directory as binary, fixing cross-device issues
+- `update-self` permission check before attempting update
+
+### Fixed
+- `update-self` now functions when centipm is in PATH.
+- `fetch_registry()` now throws clean `ConnectionError` with helpful messages
+- `run` catches `FileNotFoundError` for missing runners
+- `update-self` has proper try/except around GitHub API calls
+- Some error handling I didn't mention here
+
+### Security
+- SHA256 verification on install with user prompt on failure
+- `update-self` permission check before attempting update
+
+
 ## [0.3.0-beta.2] 2026-02-21
 
 ### *Everything on 0.3.0-beta.1, and..*
@@ -12,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - A fatal bug on the packages class, causing `packages.json` to not have any entries.
 
-## [0.3.0.beta.1] 2026-02-21
+## [0.3.0-beta.1] 2026-02-21
 
 ### *Everything on the 0.3.0-alpha versions, and...*
 
@@ -83,5 +115,6 @@ This means that every version below this release won't have `update-self` functi
 ### Added
 - Initial release
 
-[0.2.0]: https://github.com/username/repo/compare/v0.2.0...HEAD
-[0.1.0]: https://github.com/username/repo/releases/tag/v0.1.0
+[0.3.0]: https://github.com/tyydev1/centipm/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/tyydev1/centipm/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/tyydev1/centipm/releases/tag/v0.1.0

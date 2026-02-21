@@ -95,14 +95,17 @@ export PATH="$HOME/.centipm/bin:$PATH"
 - [ ] `registry list`: Lists all registry URLs in the config file.
 - [x] `update-self`: Updates CentiPM itself to the latest version.
 - [x] `changelog`: Shows the changelog of the latest version.
+- [x] `info`: Shows detailed package info from the registry or offline.
+- [ ] `doctor`: Checks the health of your installation. Verify existing binaries, check if valid configurations, registry is reachable.
+- [ ] `--silent` and `--dry-run` flags throughout.
 
 # Adding your own registries
 
-By default, CentiPM uses a registry hosted at `https://raw.githubusercontent.com/tyydev1/centipm/main/registries.toml`. However, you can add your own registries by modifying the `config.toml` file located in the CentiPM configuration directory (default at `~/.centipm/config.toml`).
+By default, CentiPM uses a registry hosted at [a GitHub repo](https://raw.githubusercontent.com/tyydev1/dime-centipm-registry/refs/heads/main/registries.toml). However, you can add your own registries by modifying the `config.toml` file located in the CentiPM configuration directory (default at `~/.centipm/config.toml`).
 
-NOTICE: Soon, the default registry will be moved to a separate github repository, and the `registries.toml` file will be removed from this repository.
+NOTICE: The registry in this repository has been deleted. The default is now [The Dime/CentiPM Registry](https://github.com/tyydev1/dime-centipm-registry).
 
-Your registry URL should point to a `registries.toml` file that follows the same format as the default registry. Once you've added your registry URL to the config file, CentiPM will fetch packages from it during installation and upgrades, just like that.
+Your registry URL should point to a `.toml` file that follows the same format as the default registry. Once you've added your registry URL to the config file, CentiPM will fetch packages from it during installation and upgrades, just like that.
 
 ## Registry Fields
 
@@ -110,21 +113,18 @@ Read the comments in the [default registries.toml](https://github.com/tyydev1/di
 
 # Security Warning
 
-The latest stable version of CentiPM currently does not implement integrity verification (e.g., SHA256 checks). Use trusted registries only. It is up to the user to ensure that they trust the registries they are using. Don't worry, I am working on adding sha256 hash verification for downloaded packages to ensure integrity and security, but for now, just be careful.
+The SHA256 field has been added to version `0.3.0` and above. This adds a tiny layer of protection. Still, attackers *can* hash-match, or upload a harmful software with a legit SHA256 sum, so use trusted registers only and be careful when installing software on the internet.
 
 It is recommended to just use the default registry (Dime/CentiPM Registry), as it is maintained by me and I will try my best to ensure that it only contains safe and trustworthy packages. If you want to use a custom registry, make sure to review the packages in it before installing them.
-
-### Security Relief
-
-*The latest alpha version or above, 0.3.0-alpha.1, has successfully implemented SHA256 integrity verification.*
 
 # To-do List 
 ### (Pre-rc releases that already implement these will not affect the to-do list.)
 - [x] Implement basic package manager functionality (installing, upgrading, listing, removing packages).
 - [ ] Implement unchecked features in the usage section (e.g. registry management).
-- [ ] Add `runner` field on the registry fields for script files.
+- [ ] `search` to fallback to offline
+- [x] Add `runner` field on the registry fields for script files.
 - [ ] Downgrade Python version as low as possible without sacrificing any functionality, so your ~~smart fridge~~ device can run it too.
-- [ ] Add sha256 hash verification for downloaded packages to ensure integrity and security.
+- [x] Add sha256 hash verification for downloaded packages to ensure integrity and security.
 - [ ] Add a Rust extention module early (via PyO3) for improved performance.
 - [ ] Add support for archive formats (e.g. .zip, .tar.gz, etc.).
 - [ ] Add support for multiple registries and registry prioritization.

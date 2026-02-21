@@ -21,7 +21,7 @@ from packages import Package
 from network import download_binary, fetch_registry, get_file_size, verify_checksum
 from storage import get_bin_dir, get_config_path, init_dir_structure, load_config, load_packages, save_packages
 
-__version__ = "0.3.0-beta.2"
+__version__ = "0.3.0"
 
 def version_callback(value: bool):
     if value:
@@ -70,9 +70,13 @@ def log(message: str, level: str = "INFO", bold: bool = False, dim: bool = False
         "NOTE": typer.colors.BRIGHT_CYAN
     }
     color = color_map.get(level, typer.colors.WHITE)
-    styled_message = typer.style(f"{level}", fg=color, bold=bold, dim=dim)
-    message = typer.style(message, bold=bold, dim=dim)
-    typer.echo(f"{styled_message} {message}")
+    styled_level = typer.style(f"{level}", fg=color, bold=bold, dim=dim)
+    styled_message = (
+        typer.style(message, bold=bold, dim=dim)
+        if level != "FAIL" else
+        typer.style(message, fg=typer.colors.BRIGHT_YELLOW, dim=dim)
+    )
+    typer.echo(f"{styled_level} {styled_message}")
 
 def dimmify(text: str) -> str:
     return typer.style(text, dim=True)
@@ -104,7 +108,32 @@ def config():
     typer.echo(get_config_path())
 
 @app.command()
-def install(package: str, version: str = "latest", dim: bool = typer.Option(False, "--dim/--no-dim", help="Dim the output instead of showing it in bright colors")):
+def clean():
+    """Removes orphaned binaries from the bin directory"""
+    orphaned = [f for f in get_bin_dir().iterdir() 
+                if f.name not in load_packages()]
+    
+    if not orphaned:
+        log("No orphaned binaries found!", level="NOTE", bold=True)
+        return
+    
+    log(f"Found {len(orphaned)} orphaned binary/binaries:", level="WARN", bold=True)
+    for f in orphaned:
+        typer.echo(f"    {f.name}")
+    
+    if not typer.confirm("Delete all orphaned binaries?", default=True):
+        log("Process aborted.", level="FAIL", bold=True)
+        return
+    
+    for f in orphaned:
+        f.unlink()
+    log(f"Cleaned {len(orphaned)} orphaned binary/binaries!", level="DONE", bold=True)
+
+@app.command()
+def install(package: str, 
+            version: str = "latest", 
+            dim: bool = typer.Option(False, "--dim/--no-dim", help="Dim the output instead of showing it in bright colors"),
+            force: bool = typer.Option(False, "--force", "-f", help="Force installation")):
     """Installs a package"""
     log(f"Finding '{package}' version {version}...", level="LOAD", bold=not dim, dim=dim)
     registry_url = load_config()["registry"]["url"]
@@ -115,9 +144,10 @@ def install(package: str, version: str = "latest", dim: bool = typer.Option(Fals
         log("Please check your internet connection and try again.", level="GUIDE")
         return
 
-    if package in load_packages():
-        log("Package already installed!", level="FAIL", bold=True) # TODO: Implement reinstall command
-        return
+    if not force:
+        if package in load_packages():
+            log("Package already installed!", level="FAIL", bold=True) # TODO: Implement reinstall command
+            return
     if package not in registries:
         log("Package doesn't exist in the registry!", level="FAIL", bold=not dim, dim=dim)
         log("If this package exists in another registry, please modify the registry URL inside ~/.centipm/config.toml", level="GUIDE", dim=dim)
@@ -206,6 +236,48 @@ def view(detailed: bool = typer.Option(False, "--detailed", "-d", help="Show det
         if detailed and info.tags:
             typer.echo(typer.style(f"    ({', '.join(info.tags)})", italic=True, dim=True))
         typer.echo(f"    {info.description}")
+
+@app.command()
+def info(package: str):
+    """Show detailed information about a package in the registry"""
+    offline = False
+
+    registry_url = load_config()["registry"]["url"]
+    try:
+        registries = fetch_registry(registry_url)
+    except ConnectionError:
+        log("Registry unreachable, using offline mode.", level="WARN")
+        offline = True
+        registries = load_packages()
+    
+    for name, info in registries.items():
+        if package.lower() == name.lower():
+            typer.echo(typer.style(f"{info.author}/", fg=typer.colors.BRIGHT_BLUE, bold=True), nl=False)
+            typer.echo(typer.style(f"{name} ", bold=True), nl=False)
+            typer.echo(typer.style(info.version, fg=typer.colors.BRIGHT_GREEN, bold=True), nl=False)
+            typer.echo(typer.style(" (installed)", dim=True) if name in load_packages() else "")
+            if info.tags:
+                typer.echo(typer.style(f"    ({', '.join(info.tags)})", italic=True, dim=True))
+            typer.echo(f"    {info.description}")
+            typer.echo()
+            typer.echo(typer.style("    Author: ", fg=typer.colors.BRIGHT_BLUE, bold=True), nl=False)
+            typer.echo(f"  {info.author}")
+
+            typer.echo(typer.style("    Tags: ", fg=typer.colors.BRIGHT_BLUE, bold=True), nl=False)
+            typer.echo(f"    {', '.join(info.tags) if info.tags else 'No tags'}")
+
+            if not offline:
+                typer.echo(typer.style("    SHA256: ", fg=typer.colors.BRIGHT_BLUE, bold=True), nl=False)
+                typer.echo(f"  Provided" if info.sha256 else "Not Provided")
+
+                typer.echo(typer.style("    URL: ", fg=typer.colors.BRIGHT_BLUE, bold=True), nl=False)
+                typer.echo(f"     {info.url}")
+            
+            typer.echo(typer.style("    Runner: ", fg=typer.colors.BRIGHT_BLUE, bold=True), nl=False)
+            typer.echo(f"  {info.runner if info.runner else "Direct"}")
+            return
+    log(f"Package '{package}' not found in the registry!", level="FAIL", bold=True)
+
 
 # AUTO-GENERATED CHANGELOG COMMAND
 @app.command()
@@ -356,7 +428,7 @@ def reinstall(package: str, version: str = "latest", dim: bool = typer.Option(Fa
 def update(package: Optional[str] = None):
     """Updates a package or all packages if no package is specified"""
     try:
-        registries = fetch_registry(load_packages()["registry"]['url'])
+        registries = fetch_registry(load_config()["registry"]['url'])
     except ConnectionError as e:
         log(str(e), level="FAIL", bold=True)
         log("Please check your internet connection and try again.", level="GUIDE")
@@ -512,16 +584,29 @@ def update_self(prerelease: bool = typer.Option(False, "--pre-release", help="In
 
     temp_path = Path(sys.executable).parent / "centipm_update.tmp"
     log(f"Updating CentiPM from version {__version__} to {latest_version}...", level="LOAD", bold=True)
-    download_binary(
-        "centipm",   
-        asset_url,
-        dest=temp_path
-    ) # updated this function to take an optional dest param, defaulted to the bin directory
+    file_size = get_file_size(asset_url)
+    if file_size > 0:
+        with Progress(transient=True) as progress:
+            task = progress.add_task("Downloading...", total=file_size)
+            download_binary(
+                "centipm",   
+                asset_url,
+                dest=temp_path,
+                on_progress=lambda size: progress.update(task, advance=size)
+            )
+    else:
+        console = Console()
+        with console.status("Downloading..."):
+            download_binary(
+                "centipm",   
+                asset_url,
+                dest=temp_path
+            )
     
     os.remove(sys.executable)
     shutil.move(str(temp_path), sys.executable)
 
-    log("Successfully updated CentiPM! Please restart your terminal (though you don't need to) to apply the update.", level="DONE", bold=True)
+    log("Successfully updated CentiPM! Run 'centipm --version' to confirm.", level="DONE", bold=True)
 
 if __name__ == "__main__":
     app()
